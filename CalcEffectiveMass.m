@@ -9,3 +9,5 @@ M = K/omega_n^2
 F0 = 1800;%N, from Takeshita et al. 
 m = 66.4;%kg
 M2 = F0^2/(m*g^2)
+
+a_b = sqrt(M/m);

@@ -22,11 +22,15 @@ for nd = 1:10:ndat
     omega_n2 = omega_n^2;
     Amp_CC = (max(X_CC) - min(X_CC))/2;
     omegaFwd = 2*pi/tmp.T;
-    Xfwd_CC = (Amp_CC)*(1 - cos(omegaFwd*tmp.tfloor)) + X_CC0;
-%     figure;
-%     plot(tmp.tfloor, X_CC)
-%     hold on
-%     plot(tmp.tfloor, Xfwd_CC,'rx')    
+    %Xfwd_CC = (Amp_CC)*(1 - cos(omegaFwd*tmp.tfloor)) + X_CC0;
+    V0 = tmp.V0;
+    Xfwd_CC = g*(1/omegaFwd^2 - 1/omega_n^2) ...
+                - g*(1/omegaFwd^2 - 1/omega_n^2)*cos(omegaFwd*t)...
+                + omegaFwd*V0*(1/omegaFwd^2 - 1/omega_n^2)*sin(omegaFwd*t)+ X_CC0;
+    figure;
+    plot(tmp.tfloor, X_CC)
+    hold on
+    plot(t, Xfwd_CC,'rx')    
     [tfwd, yfwd] = ode45(@(t,y) focrceoscifcn(t,y,tmp.tfloor,Xfwd_CC,tmp.M,tmp.K,tmp.C,tmp.X_SEC0,g), tspan, ic, opts);
     x_analy_nat1 = Amp_CC*omegaFwd^2/(omegaFwd^2 - omega_n2)*cos(omega_n*tmp.tfloor);
     x_analy_nat2 = tmp.V0/omega_n*sin(omega_n*tmp.tfloor);
