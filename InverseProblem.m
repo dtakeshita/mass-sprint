@@ -4,7 +4,8 @@ clear;
 close all;
 m = 66.4;%kg
 M = 520.38;%effective mass, see CalcEffectiveMass.m
-%M = 200;
+b_a = sqrt(m/M);
+a_b = 1/b_a;
 K = 1.657e5;%N/m - 165.7 N/mm
 %C = 1.98e3;%N/(m/s) - 1.98 N/(mm/s)
 C = 0;
@@ -16,27 +17,40 @@ g = 9.80;
 
 T_n = 2*pi/omega_n;
 Tset = 0.2:0.01:1;
+%Tset = logspace(-1,0,100);
 Tplot = [0.2 0.35 1.0];
+
 V0set = [0.01 0.1 1 10];%initial downward velocity. must be zero or positive number 
-%V0set = 0:0.1:10;
+V_CGset = a_b*V0set;
+
+V_CGset = [0.01 0.1 1 10];
+V0set = b_a*V_CGset;
+
 V0plot = [0.1];
+V_CG_plot = 0.1;
 V0Plot_GainCurve = [0 0.01 0.1 1 10];
+V_CG_plot_GainCurve = [0 0.01 0.1 1 10];
 dt = 5e-4;
 
 X_MTC0 = 0.5; %MTC length at rest
 X_SEC0 = 0.3;
 X_CC0 = X_MTC0 - X_SEC0;
-tTakeoffSet = zeros(size(V0set));
+tTakeoffSet = zerocs(size(V0set));
 h0 = V0set.^2/(2*g);
 %tTakeoffTh = 1/omega*(2*pi - acos((M*g-2*k*h0)./(M*g+2*k*h0)));
 ampRatio = zeros(size(Tset));
 Tc_peak = zeros(size(V0set));
 ndat = 1;
 fh_ratio = figure;
+leg_str_rescrv = cell(size(V0set));
+h_rescrv = gobjects(size(V0set));
 for n=1:length(V0set)
     ampRatio = zeros(size(Tset));
     tTakeoffSet = zeros(size(Tset));
-    V0 = V0set(n);
+%     V0 = V0set(n);
+%     V_CG = a_b*V0;
+    V_CG = V_CGset(n);
+    V0 = b_a*V_CG;
     for nt = 1:length(Tset)
         T = Tset(nt);
         omega = 2*pi/T;
@@ -48,7 +62,15 @@ for n=1:length(V0set)
         Y = V0/omega*sin(omega*t) -g/omega^2 *cos(omega*t) + X_MTC0 + g/omega^2 ;
         V = V0*cos(omega*t) + g/omega*sin(omega*t);
         A = -V0*omega*sin(omega*t) + g*cos(omega*t);
+        %consider b_a
+        Y = b_a*V_CG/omega*sin(omega*t) -b_a*g/omega^2 *cos(omega*t) + X_MTC0 + b_a*g/omega^2 ;
+        V = b_a*V_CG*cos(omega*t) + b_a*g/omega*sin(omega*t);
+        A = -b_a*V_CG*omega*sin(omega*t) + b_a*g*cos(omega*t);
+        
         [tTakeoff, idxTakeoff] = findTcontact(t,V,T/2,-V0);
+        
+        [tTakeoff, idxTakeoff] = findTcontact(t,Y,T/2-dt,X_MTC0,'down');
+        
         Yshift = [Y(2:end) Y(end)];
         Yfloor = Y(1:idxTakeoff);
         Vfloor = V(1:idxTakeoff);
@@ -67,7 +89,8 @@ for n=1:length(V0set)
             'Yfloor',Yfloor,'Vfloor',Vfloor,'Afloor',Afloor,'tfloor',tfloor);
         ndat = ndat + 1;
         %% plot for the text book
-        if any(abs(T-Tplot) < 1e-4) && any(abs(V0-V0plot) < 1e-4)
+        %if any(abs(T-Tplot) < 1e-4) && any(abs(V0-V0plot) < 1e-4)
+        if any(abs(T-Tplot) < 1e-4) && any(abs(V_CG-V_CG_plot) < 1e-4)
             amp_MTC = (max(Yfloor)-min(Yfloor));
             amp_CC = (max(X_CC)-min(X_CC));
             amp_plot = max(amp_MTC, amp_CC);
@@ -75,13 +98,25 @@ for n=1:length(V0set)
             figure;
             Yplot = Yfloor-Yfloor(1);
             CCplot = X_CC - X_CC(1);
-            h_MTC = plot(tfloor, Yplot);
+            h_MTC = plot(tfloor, Yplot*100);
             hold on
-            h_CC = plot(tfloor, CCplot);
+            h_CC = plot(tfloor, CCplot*100);
             set(h_MTC,'linewidth',lw,'color','k','linestyle','--')
             set(h_CC,'linewidth',lw,'color','k','linestyle','-')
+            if T == 0.2;
+                t_tick = 0:0.05:0.15;
+                x_tick = -2:1:1;
+            elseif T == 0.35;
+                t_tick = 0:0.1:0.3;
+                x_tick = 0:1:3;
+            else
+                t_tick = 0:0.25:0.75;
+                x_tick = 0:5:20;
+            end
+            set(gca,'xlim',[0 tfloor(end)],'fontsize',14,...
+                'xtick',t_tick,'ytick',x_tick)
             %[AX,H1,H2] = plotyy(tfloor, Yplot, tfloor, CCplot)
-            str_ttl = sprintf('V0 =%g, T=%g',V0,T);
+            str_ttl = sprintf('V_{CG} =%g, T=%g',V_CG,T);
             title(str_ttl)
             yrange_MTC = [0 amp_plot];
             if T < T_n
@@ -121,28 +156,35 @@ for n=1:length(V0set)
     end
     save('testdata.mat', 'savedata');
     [~,idx_max] = max(ampRatio);
-    Tc_peak(n) = tTakeoffSet(idx_max);
-    if any(abs(V0-V0Plot_GainCurve)<1e-3)
+    P=polyfit(tTakeoffSet(idx_max-1:idx_max+1), ampRatio(idx_max-1:idx_max+1),2);
+    Tc_peak(n) = -P(2)/(2*P(1)); 
+    %Tc_peak(n) = tTakeoffSet(idx_max);
+    %if any(abs(V0-V0Plot_GainCurve)<1e-3)
+    if any(abs(V_CG-V_CG_plot_GainCurve)<1e-3)
         figure(fh_ratio)
-        plot(tTakeoffSet, ampRatio)
+        h_rescrv(n) = plot(tTakeoffSet, ampRatio)
         %lh = plot(Tset, ampRatio)
         hold on
         xlabel('Contact time (sec)')
         ylabel('A_{MTC}/A_{CC}')
         ttl_str = sprintf('Tn = %f, V0 = %f',T_n, V0);
+        leg_str_rescrv{n} = sprintf('Tn = %.2g, V0 = %g',T_n, V0);
         title(ttl_str)
     end
     
 end
+legend(h_rescrv,leg_str_rescrv)
+
 V0_Tc = logspace(-2,1,100);
 h0 = V0_Tc.^2/(2*g);
 tTakeoffTh = 1/omega_n*(2*pi - acos((M*g-2*K*h0)./(M*g+2*K*h0)));
+%tTakeoffTh2 = 2/om
 figure;
 plot(V0_Tc,tTakeoffTh)
 hold on
-plot(V0set, Tc_peak,'o')
+plot(V_CGset, Tc_peak,'o')
 % plot(h0, T*ones(size(h0)),'k')
 % plot(h0, T/2*ones(size(h0)),'k')
 set(gca,'xscale','log')
-xlabel('V0');ylabel('Optimal Tc')
+xlabel('V_{CG}');ylabel('Optimal Tc')
 
