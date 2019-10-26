@@ -24,6 +24,7 @@ V0set = -20:0.01:-0.01;
 tTakeoffSet = zeros(size(V0set));
 h0 = V0set.^2/(2*g);
 tTakeoffTh = 1/omega*(2*pi - acos((M*g-2*K*h0)./(M*g+2*K*h0)));
+tTakeoffTh2 = 2/omega*(pi + atan(V0set*omega/g));
 for n=1:length(V0set)
 %for n=length(V0set):length(V0set)
     V0 = V0set(n);
@@ -35,19 +36,21 @@ for n=1:length(V0set)
     tTakeoff = t(idxTakeoff);
     tTakeoffSet(n) = tTakeoff;
     
-    subplot(2,1,1)
-    plot(t,Y)
-    hold on
-    plot(t,Y0*ones(size(t)),'r')
-    plot(tTakeoff, Y(idxTakeoff),'ko')
-    subplot(2,1,2)
-    plot(t,V)
-    hold on
-    plot(t,-V0*ones(size(t)),'r')
+%     subplot(2,1,1)
+%     plot(t,Y)
+%     hold on
+%     plot(t,Y0*ones(size(t)),'r')
+%     plot(tTakeoff, Y(idxTakeoff),'ko')
+%     subplot(2,1,2)
+%     plot(t,V)
+%     hold on
+%     plot(t,-V0*ones(size(t)),'r')
 end
 plot(V0set,tTakeoffSet,'b')
 hold on
 plot(V0set, tTakeoffTh,'ro')
 plot(V0set, T*ones(size(h0)),'k')
 plot(V0set, T/2*ones(size(h0)),'k')
+plot(V0set, tTakeoffTh2,'mx')
+
 
